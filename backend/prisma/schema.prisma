@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Inventory {
+  productId        Int      @id @default(autoincrement()) @map("product_id")
+  name             String
+  sku              String   @unique
+  category         String
+  subCategory      String?  @map("sub_category")
+  brand            String?
+  size             String?
+  color            String?
+  costPrice        Decimal  @map("cost_price") @db.Decimal(12, 2)
+  sellingPrice     Decimal  @map("selling_price") @db.Decimal(12, 2)
+  currentStock     Int      @default(0) @map("current_stock")
+  reorderThreshold Int      @default(3) @map("reorder_threshold")
+  supplier         String?
+  imageUrl         String?  @map("image_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+  lastUpdated      DateTime @default(now()) @map("last_updated")
+
+  salesTransaction SalesTransaction[]
+  returns          Return[]
+  stockAdjustment  StockAdjustment[]
+
+  @@index([category, subCategory])
+  @@index([brand])
+  @@index([name])
+  @@map("inventory")
+}
+
+model SalesTransaction {
+  saleId       Int      @id @default(autoincrement()) @map("sale_id")
+  productId    Int      @map("product_id")
+  qtySold      Int      @map("qty_sold")
+  sellingPrice Decimal  @map("selling_price") @db.Decimal(12, 2)
+  discount     Decimal  @default(0) @db.Decimal(12, 2)
+  paymentMode  String   @map("payment_mode")
+  saleDate     DateTime @default(now()) @map("sale_date") @db.Date
+  saleTime     DateTime @default(now()) @map("sale_time") @db.Time(6)
+
+  product Inventory @relation(fields: [productId], references: [productId])
+  returns Return[]
+
+  @@index([productId])
+  @@index([saleDate])
+  @@map("sales_transactions")
+}
+
+model Return {
+  returnId       Int      @id @default(autoincrement()) @map("return_id")
+  originalSaleId Int      @map("original_sale_id")
+  productId      Int      @map("product_id")
+  qtyReturned    Int      @map("qty_returned")
+  reason         String
+  resellable     Boolean
+  returnDate     DateTime @default(now()) @map("return_date") @db.Date
+
+  originalSale SalesTransaction @relation(fields: [originalSaleId], references: [saleId])
+  product      Inventory        @relation(fields: [productId], references: [productId])
+
+  @@index([productId])
+  @@index([originalSaleId])
+  @@map("returns")
+}
+
+model StockAdjustment {
+  adjustmentId  Int      @id @default(autoincrement()) @map("adjustment_id")
+  productId     Int      @map("product_id")
+  qtyChanged    Int      @map("qty_changed")
+  adjustedStock Int      @default(0) @map("adjusted_stock")
+  reason        String
+  note          String?
+  createdBy     String   @default("owner") @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  product Inventory @relation(fields: [productId], references: [productId])
+
+  @@index([productId])
+  @@map("stock_adjustments")
+}
